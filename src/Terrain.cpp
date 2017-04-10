@@ -31,20 +31,20 @@ Terrain::Terrain(const unsigned size, const double roughness) :
 std::vector<Uint32> Terrain::get_map() const { return color_map; }
 
 // Sets height at given coordinates in height map
-void Terrain::set_height(const int x_coord, const int z_coord, const double y_coord) {
-    if(within_map(x_coord, z_coord))                           // Check if coordinates are within map
-        height_map[x_coord + (z_coord * map_size)] = y_coord;  // Set height at x,z coordinate to height y
+void Terrain::set_height(const int x_coord, const int y_coord, const double z_coord) {
+    if(within_map(x_coord, y_coord))                           // Check if coordinates are within map
+        height_map[x_coord + (y_coord * map_size)] = z_coord;  // Set height at x,z coordinate to height y
 }
 
 // Gets height at given coordinates in height map, return -1 if outside map
-double Terrain::get_height(const int x_coord, const int z_coord) const {
-    if(!within_map(x_coord, z_coord)) return -1;        // Check if coordinates are within map
-    return height_map[x_coord + (z_coord * map_size)];  // Get height at x,z coordinates of map
+double Terrain::get_height(const int x_coord, const int y_coord) const {
+    if(!within_map(x_coord, y_coord)) return -1;        // Check if coordinates are within map
+    return height_map[x_coord + (y_coord * map_size)];  // Get height at x,z coordinates of map
 }
 
 // Checks to see if a set of given coordinates are within the map boundaries
-bool Terrain::within_map(const int x, const int z) const {
-    return (x >= 0 && x < map_size && z >= 0 && z < map_size);
+bool Terrain::within_map(const int x, const int y) const {
+    return (x >= 0 && x < map_size && y >= 0 && y < map_size);
 }
 
 // Generates a height map using Diamond Square algorithm, then
@@ -77,17 +77,17 @@ void Terrain::divide(const int size) {
 
     // Sets height at center of successively smaller and smaller squares
     // using an average of the heights of the corners of the squares.
-    for(int z = half; z < map_size; z += size) {
+    for(int y = half; y < map_size; y += size) {
         for(int x = half; x < map_size; x += size) {
-            square(x, z, half, rand_dist(rd) * scale * 2 - scale);
+            square(x, y, half, rand_dist(rd) * scale * 2 - scale);
         }
     }
 
     // Sets height at center of successively smaller and smaller diamonds
     // using an average of the heights of the corners of the diamonds.
-    for(int z = 0; z <= map_size; z += half) {
-        for(int x = (z + half) % size; x <= map_size; x += size) {
-            diamond(x, z, half, rand_dist(rd) * scale * 2 - scale);
+    for(int y = 0; y <= map_size; y += half) {
+        for(int x = (y + half) % size; x <= map_size; x += size) {
+            diamond(x, y, half, rand_dist(rd) * scale * 2 - scale);
         }
     }
 
@@ -95,31 +95,31 @@ void Terrain::divide(const int size) {
 }
 
 // Sets the height of the center of a square section
-void Terrain::square(const int x_coord, const int z_coord, const int size, const double offset) {
+void Terrain::square(const int x_coord, const int y_coord, const int size, const double offset) {
     std::vector<double> heights(4, 0.0);
 
     // Gets heights at 4 corners of the square
-    heights[0] = get_height(x_coord - size, z_coord - size);
-    heights[1] = get_height(x_coord + size, z_coord - size);
-    heights[2] = get_height(x_coord + size, z_coord + size);
-    heights[3] = get_height(x_coord - size, z_coord + size);
+    heights[0] = get_height(x_coord - size, y_coord - size);
+    heights[1] = get_height(x_coord + size, y_coord - size);
+    heights[2] = get_height(x_coord + size, y_coord + size);
+    heights[3] = get_height(x_coord - size, y_coord + size);
 
     double avg = average(heights);               // Gets average height of 4 corners of square
-    set_height(x_coord, z_coord, avg + offset);  // Sets middle height to average + random offset
+    set_height(x_coord, y_coord, avg + offset);  // Sets middle height to average + random offset
 }
 
 // Sets the height of the center of a diamond section
-void Terrain::diamond(const int x_coord, const int z_coord, const int size, const double offset) {
+void Terrain::diamond(const int x_coord, const int y_coord, const int size, const double offset) {
     std::vector<double> heights(4, 0.0);
 
     // Gets heights at 4 corners of the diamond
-    heights[0] = get_height(x_coord, z_coord - size);
-    heights[1] = get_height(x_coord + size, z_coord);
-    heights[2] = get_height(x_coord, z_coord + size);
-    heights[3] = get_height(x_coord - size, z_coord);
+    heights[0] = get_height(x_coord, y_coord - size);
+    heights[1] = get_height(x_coord + size, y_coord);
+    heights[2] = get_height(x_coord, y_coord + size);
+    heights[3] = get_height(x_coord - size, y_coord);
 
     double avg = average(heights);               // Gets average height of 4 corners of diamond
-    set_height(x_coord, z_coord, avg + offset);  // Sets middle height to average + random offset
+    set_height(x_coord, y_coord, avg + offset);  // Sets middle height to average + random offset
 }
 
 // Calculates the average heights of the 4 corners of a square or diamond section of the map
@@ -140,18 +140,18 @@ double Terrain::average(const std::vector<double> &heights) const {
 // Draws the height map for terrain and water into the color map
 void Terrain::draw_map() {
     coord_pair top, bottom, water;
-    double y_coord{0.0}, slope{0.0};
+    double z_coord{0.0}, slope{0.0};
     Uint32 t_color{0}, w_color{0};
 
-    for(int z_coord = 0; z_coord < map_size; ++z_coord) {
+    for(int y_coord = 0; y_coord < map_size; ++y_coord) {
         for(int x_coord = 0; x_coord < map_size; ++x_coord){
-            y_coord = get_height(x_coord, z_coord);                     // Gets the height at current coordinates
-            top = project_map(x_coord, z_coord, y_coord);               // Isometrically projects coordinate into 3D plane
-            bottom = project_map(x_coord + 1, z_coord, 0);              // Gets coordinate at absolute bottom of map
-            water = project_map(x_coord, z_coord, 0.05 * map_size);     // Isometrically projects water into flat plane
-            slope = get_height(x_coord + 1, z_coord) - y_coord;         // Gets slope between adjacent coordinates
-            t_color = slope_brightness(x_coord, z_coord, slope);        // Sets color at coordinate relative to slope
-            w_color = water_brightness(x_coord, z_coord);               // Sets color at coordinate with random alpha values
+            z_coord = get_height(x_coord, y_coord);                     // Gets the height at current coordinates
+            top = project_map(x_coord, y_coord, z_coord);               // Isometrically projects coordinate into 3D plane
+            bottom = project_map(x_coord + 1, y_coord, 0);              // Gets coordinate at absolute bottom of map
+            water = project_map(x_coord, y_coord, 0.05 * map_size);     // Isometrically projects water into flat plane
+            slope = get_height(x_coord + 1, y_coord) - z_coord;         // Gets slope between adjacent coordinates
+            t_color = slope_brightness(x_coord, y_coord, slope);        // Sets color at coordinate relative to slope
+            w_color = water_brightness(x_coord, y_coord);               // Sets color at coordinate with random alpha values
             draw_rect(water, bottom, w_color);                          // Draws rectangle into color map between coordinates
             draw_rect(top, bottom, t_color);                            // Draws rectangle into color map between coordinates
         }
@@ -161,15 +161,15 @@ void Terrain::draw_map() {
 // Draws a rectangle into the color map with the given color and pair of coordinates.
 // All coordinates are adjusted to the right to fit in middle of SDL window.
 void Terrain::draw_rect(const coord_pair top, const coord_pair bottom, Uint32 color) {
-    for(int i = 0; i < bottom.first - top.first; i++)
-        for (int j = 0; j < bottom.second - top.second; j++)
-            color_map[top.first + screen_adjust + i + Screen::SCREEN_WIDTH * (top.second + j)] = color;
+    for(int x = 0; x < bottom.first - top.first; x++)
+        for (int y = 0; y < bottom.second - top.second; y++)
+            color_map[top.first + screen_adjust + x + Screen::SCREEN_WIDTH * (top.second + y)] = color;
 }
 
 
 // Sets the brightness at any given coordinate based on the slope between it and its adjacent coordinates
-Uint32 Terrain::slope_brightness(const int x_coord, const int z_coord, const double slope) const {
-    if(x_coord == map_size - 1 || z_coord == map_size - 1)         // If at edge of map, sets standard border color
+Uint32 Terrain::slope_brightness(const int x_coord, const int y_coord, const double slope) const {
+    if(x_coord == map_size - 1 || y_coord == map_size - 1)         // If at edge of map, sets standard border color
         return get_color(192, 154, 98, 20);
 
     Uint8 alpha = static_cast<Uint8>(std::abs(slope * 50 + 128));  // Sets brightness relative to slope at coordinate
@@ -177,8 +177,8 @@ Uint32 Terrain::slope_brightness(const int x_coord, const int z_coord, const dou
 }
 
 // Sets the brightness with randomly generated alpha values
-Uint32 Terrain::water_brightness(const int x_coord, const int z_coord) const {
-    if(x_coord == map_size - 1 || z_coord == map_size - 1) // If at edge of map, sets standard border color
+Uint32 Terrain::water_brightness(const int x_coord, const int y_coord) const {
+    if(x_coord == map_size - 1 || y_coord == map_size - 1) // If at edge of map, sets standard border color
         return get_color(50, 150, 200, 20);
 
     std::random_device rd;
@@ -192,25 +192,25 @@ Uint32 Terrain::get_color(const Uint8 red, const Uint8 green, const Uint8 blue, 
 }
 
 // Projects the 2D height map into a seemingly 3D isometric perspective by using coordinate manipulation
-std::pair<int, int> Terrain::project_map(const int flat_x, const int flat_z, const double flat_y) const {
-    double x_init{0.0}, z_init{0.0}, x_coord{0.0}, z_coord{0.0}, y_coord{0.0};
+std::pair<int, int> Terrain::project_map(const int flat_x, const int flat_y, const double flat_z) const {
+    double x_init{0.0}, y_init{0.0}, x_coord{0.0}, y_coord{0.0}, z_coord{0.0};
 
     // Manipulates coordinates using isometric projection, rotates the map by
     // moving the top left and bottom right corners into the middle of view
-    x_coord = 0.5 * (map_size + flat_x - flat_z);
-    z_coord = 0.5 * (flat_x + flat_z);
+    x_coord = 0.5 * (map_size + flat_x - flat_y);
+    y_coord = 0.5 * (flat_x + flat_y);
 
     x_init = 0.5 * map_size;  // Sets width of new perspective
-    z_init = 0.2 * map_size;  // Sets depth of new perspective
+    y_init = 0.2 * map_size;  // Sets depth of new perspective
 
     // Seemingly tilts the map into the screen so that coordinates higher on
     // the screen now appear further away and lower coordinates appear closer
-    y_coord = map_size * 0.5 - flat_y + z_coord * 0.75;
+    z_coord = map_size * 0.5 - flat_z + y_coord * 0.75;
     x_coord = (x_coord - map_size * 0.5) * 6;
-    z_coord = (map_size - z_coord) * 0.005 + 1;
+    y_coord = (map_size - y_coord) * 0.005 + 1;
 
-    x_coord = x_init + x_coord / z_coord;  // Sets new projected x_coord position
-    z_coord = z_init + y_coord / z_coord;  // Sets new projected z_coord position
+    x_coord = x_init + x_coord / y_coord;  // Sets new projected x_coord position
+    y_coord = y_init + z_coord / y_coord;  // Sets new projected y_coord position
 
-    return std::pair<int, int>(x_coord, z_coord);
+    return std::pair<int, int>(x_coord, y_coord);
 }
